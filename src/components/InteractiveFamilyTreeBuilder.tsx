@@ -1105,6 +1105,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           cardTheme: detail.appearance.cardTheme,
           fontFamily: detail.appearance.fontFamily,
           canvasBackground: detail.appearance.canvasBackground,
+          avatarStyle: detail.appearance.avatarStyle || prev.avatarStyle,
         })
       );
     };
@@ -1171,6 +1172,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           cardTheme: treeDisplaySettings.cardTheme,
           fontFamily: treeDisplaySettings.fontFamily,
           canvasBackground: treeDisplaySettings.canvasBackground,
+          avatarStyle: treeDisplaySettings.avatarStyle,
         },
         displaySettings: treeDisplaySettings,
       });
@@ -3711,6 +3713,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               node={station1Node}
               eraOverride="family_branch"
               avatarStyle={treeDisplaySettings.avatarStyle}
+              nodeOrigin="direct_family"
               size="md"
               className="!w-full !h-full !border-0"
             />
@@ -3915,6 +3918,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               node={node}
               eraOverride="prophets_genesis"
               avatarStyle={treeDisplaySettings.avatarStyle}
+              nodeOrigin="historical"
               size="md"
               className="!w-full !h-full !border-0"
             />
@@ -3943,6 +3947,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               node={node}
               eraOverride="major_tribe"
               avatarStyle={treeDisplaySettings.avatarStyle}
+              nodeOrigin="historical"
               size="md"
               className="!w-full !h-full !border-0"
             />
@@ -3965,6 +3970,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
           <HeritageNodeAvatar
             node={node}
             avatarStyle={treeDisplaySettings.avatarStyle}
+            nodeOrigin="historical"
             size="md"
             className="!w-full !h-full !border-0"
           />
@@ -4492,6 +4498,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
               personRole={avatarPersonRole}
               gender={person.gender}
               avatarStyle={treeDisplaySettings.avatarStyle}
+              nodeOrigin="client_entered"
               customImageUrl={person.photoThumbnailUrl || person.photoUrl}
               preferRealPhoto={treeDisplaySettings.preferRealPhotos}
               displayName={mainName}
@@ -4527,6 +4534,7 @@ export const InteractiveFamilyTreeBuilder: React.FC<
             personRole={avatarPersonRole}
             gender={person.gender}
             avatarStyle={treeDisplaySettings.avatarStyle}
+            nodeOrigin="client_entered"
             customImageUrl={person.photoThumbnailUrl || person.photoUrl}
             preferRealPhoto={treeDisplaySettings.preferRealPhotos}
             displayName={mainName}
@@ -8312,6 +8320,8 @@ export const InteractiveFamilyTreeBuilder: React.FC<
                 <HeritageNodeAvatar
                   personRole="client"
                   gender={findPerson(photoPickerNodeId)?.gender || 'male'}
+                  avatarStyle={treeDisplaySettings.avatarStyle}
+                  nodeOrigin="client_entered"
                   size="md"
                 />
                 <div>

@@ -664,6 +664,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                         }
                         gender={formGender}
                         avatarStyle={avatarStyle}
+                        nodeOrigin="client_entered"
                         customImageUrl={formPhotoUrl || undefined}
                         preferRealPhoto={
                           preferRealPhotos || Boolean(formPhotoUrl)
@@ -882,6 +883,7 @@ export const TreePersonStudioModal: React.FC<TreePersonStudioModalProps> = ({
                             }
                             gender={formGender}
                             avatarStyle={avatarStyle}
+                            nodeOrigin="client_entered"
                             customImageUrl={formPhotoUrl || undefined}
                             preferRealPhoto={
                               preferRealPhotos || Boolean(formPhotoUrl)

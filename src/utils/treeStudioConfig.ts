@@ -214,7 +214,7 @@ export interface TreePosterSettings {
   inkSaverMode: boolean;
 }
 
-export const TREE_DISPLAY_SETTINGS_SCHEMA_VERSION = 3;
+export const TREE_DISPLAY_SETTINGS_SCHEMA_VERSION = 4;
 
 export interface TreeDisplaySettings {
   defaultsSchemaVersion?: number;
@@ -789,6 +789,11 @@ export const TREE_AVATAR_STYLE_OPTIONS: Array<{
   label: string;
   subtitle: string;
 }> = [
+  {
+    id: 'juthori_signature',
+    label: 'جذوري الرسمي (تلقائي)',
+    subtitle: 'صور رمزية متدرجة للأصول التاريخية والعائلة والأفراد',
+  },
   { id: 'heritage', label: 'تراثي', subtitle: 'عربي أصيل' },
   { id: 'gulf', label: 'خليجي', subtitle: 'شماغ وبشت' },
   { id: 'levantine', label: 'شامي', subtitle: 'طربوش وحطة' },
@@ -817,7 +822,7 @@ export const DEFAULT_POSTER_SETTINGS: TreePosterSettings = {
 export const DEFAULT_TREE_DISPLAY_SETTINGS: TreeDisplaySettings = {
   defaultsSchemaVersion: TREE_DISPLAY_SETTINGS_SCHEMA_VERSION,
   cardTheme: 'diriyah_oasis',
-  avatarStyle: 'heritage',
+  avatarStyle: 'juthori_signature',
   fontFamily: 'cairo_modern',
   preferRealPhotos: true,
   femalePrivacyMode: 'full_name',
@@ -855,8 +860,13 @@ export function normalizeTreeDisplaySettings(
     poster?: Partial<TreePosterSettings>;
   };
 
-  // Upgrade legacy auto-saved v1/v2 payloads cleanly to v3 museum defaults
-  if (p.defaultsSchemaVersion !== TREE_DISPLAY_SETTINGS_SCHEMA_VERSION) {
+  // Upgrade legacy auto-saved v1/v2 payloads cleanly to current defaults;
+  // for v3 payloads, preserve custom visual settings while migrating the old default avatarStyle ('heritage') to 'juthori_signature'.
+  const isV3Upgrade = p.defaultsSchemaVersion === 3;
+  if (
+    p.defaultsSchemaVersion !== TREE_DISPLAY_SETTINGS_SCHEMA_VERSION &&
+    !isV3Upgrade
+  ) {
     const customTitle =
       p.poster && typeof p.poster.customTitle === 'string'
         ? p.poster.customTitle.slice(0, 120)
@@ -871,6 +881,7 @@ export function normalizeTreeDisplaySettings(
   }
 
   const validAvatars = new Set<TreeAvatarStyle>([
+    'juthori_signature',
     'heritage',
     'gulf',
     'levantine',
@@ -905,7 +916,9 @@ export function normalizeTreeDisplaySettings(
         ? (p.cardTheme as TreeCardThemeId)
         : DEFAULT_TREE_DISPLAY_SETTINGS.cardTheme,
     avatarStyle:
-      p.avatarStyle && validAvatars.has(p.avatarStyle)
+      isV3Upgrade && (!p.avatarStyle || p.avatarStyle === 'heritage')
+        ? DEFAULT_TREE_DISPLAY_SETTINGS.avatarStyle
+        : p.avatarStyle && validAvatars.has(p.avatarStyle)
         ? p.avatarStyle
         : DEFAULT_TREE_DISPLAY_SETTINGS.avatarStyle,
     fontFamily:
@@ -1361,6 +1374,7 @@ export interface SharedVisualAppearance {
   cardTheme: TreeCardThemeId;
   fontFamily: TreeArabicFontId;
   canvasBackground: TreeCanvasBackground;
+  avatarStyle?: TreeAvatarStyle;
 }
 
 export interface SharedVisualSyncEventDetail {
@@ -1404,6 +1418,7 @@ export function readSharedVisualAppearanceFromLocal(
         cardTheme: normalized.cardTheme,
         fontFamily: normalized.fontFamily,
         canvasBackground: normalized.canvasBackground,
+        avatarStyle: normalized.avatarStyle,
       };
     }
     const sharedRaw = window.localStorage.getItem(
@@ -1411,11 +1426,15 @@ export function readSharedVisualAppearanceFromLocal(
     );
     if (sharedRaw) {
       const parsed = JSON.parse(sharedRaw) as Partial<SharedVisualAppearance>;
-      const normalized = normalizeTreeDisplaySettings(parsed);
+      const normalized = normalizeTreeDisplaySettings({
+        ...DEFAULT_TREE_DISPLAY_SETTINGS,
+        ...parsed,
+      });
       return {
         cardTheme: normalized.cardTheme,
         fontFamily: normalized.fontFamily,
         canvasBackground: normalized.canvasBackground,
+        avatarStyle: normalized.avatarStyle,
       };
     }
     return null;
@@ -1472,6 +1491,7 @@ export function writeSharedTreeDisplaySettingsToLocal(
       cardTheme: normalized.cardTheme,
       fontFamily: normalized.fontFamily,
       canvasBackground: normalized.canvasBackground,
+      avatarStyle: normalized.avatarStyle,
     };
     window.localStorage.setItem(
       getSharedVisualAppearanceStorageKey(userId),

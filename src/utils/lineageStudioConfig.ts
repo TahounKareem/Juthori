@@ -1,8 +1,10 @@
 import React from 'react';
 import { UpperAncestorNode } from '../types/juthori';
+import { TreeAvatarStyle } from '../components/HeritageNodeAvatar';
 import {
   DEFAULT_TREE_DISPLAY_SETTINGS,
   TREE_ARABIC_FONT_OPTIONS,
+  TREE_AVATAR_STYLE_OPTIONS,
   TREE_CANVAS_BACKGROUND_OPTIONS,
   TREE_CARD_THEMES,
   TreeArabicFontId,
@@ -37,6 +39,7 @@ export interface LineageStudioPrefs {
   themeId: LineageThemeId;
   fontId: LineageFontId;
   backdropId: LineageBackdropId;
+  avatarStyle: TreeAvatarStyle;
   showNasabStrip: boolean;
 }
 
@@ -46,6 +49,7 @@ export const DEFAULT_LINEAGE_STUDIO_PREFS: LineageStudioPrefs = {
   themeId: DEFAULT_TREE_DISPLAY_SETTINGS.cardTheme,
   fontId: DEFAULT_TREE_DISPLAY_SETTINGS.fontFamily,
   backdropId: DEFAULT_TREE_DISPLAY_SETTINGS.canvasBackground,
+  avatarStyle: DEFAULT_TREE_DISPLAY_SETTINGS.avatarStyle,
   showNasabStrip: true,
 };
 
@@ -734,6 +738,13 @@ export function normalizeLineageStudioPrefs(
   const backdropId = normalizeLineageBackdropId(
     raw.backdropId as string | undefined
   );
+  const validAvatarStyles = new Set<TreeAvatarStyle>(
+    TREE_AVATAR_STYLE_OPTIONS.map((o) => o.id)
+  );
+  const avatarStyle: TreeAvatarStyle =
+    raw.avatarStyle && validAvatarStyles.has(raw.avatarStyle)
+      ? raw.avatarStyle
+      : DEFAULT_LINEAGE_STUDIO_PREFS.avatarStyle;
 
   return {
     viewMode,
@@ -741,6 +752,7 @@ export function normalizeLineageStudioPrefs(
     themeId,
     fontId,
     backdropId,
+    avatarStyle,
     showNasabStrip:
       typeof raw.showNasabStrip === 'boolean'
         ? raw.showNasabStrip

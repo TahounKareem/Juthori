@@ -2,6 +2,7 @@ import React, { useId } from 'react';
 import { UpperAncestorNode } from '../types/juthori';
 
 export type TreeAvatarStyle =
+  | 'juthori_signature'
   | 'heritage'
   | 'gulf'
   | 'levantine'
@@ -10,6 +11,16 @@ export type TreeAvatarStyle =
   | 'egyptian'
   | 'maghrebi'
   | 'calligraphy_gold';
+
+export const JUTHORI_SIGNATURE_AVATARS = {
+  historicalMale: '/assets/aistudio/AV_HIS_MALE_6bb4b12e.png',
+  historicalFemale: '/assets/aistudio/AV_HIS_FEMALE_713f6116.png',
+  directFamily: '/assets/aistudio/AV_FAM_62946d0c.png',
+  modernMale: '/assets/aistudio/AV_MOD_MALE_6520c322.png',
+  modernFemale: '/assets/aistudio/AV_MOD_FEMALE_16aee028.png',
+} as const;
+
+export type AvatarNodeOrigin = 'direct_family' | 'historical' | 'client_entered';
 
 export type HistoricalEraCategory =
   | 'contemporary'
@@ -45,6 +56,13 @@ interface HeritageNodeAvatarProps {
   personRole?: PersonRoleAvatar;
   gender?: 'M' | 'F' | 'male' | 'female';
   avatarStyle?: TreeAvatarStyle;
+  /**
+   * Semantic origin of the node:
+   * - 'direct_family': Exclusively the client-entered direct family node (AV_FAM.png)
+   * - 'historical': Historical ancestors / tribes / Adam tree nodes fetched from our database
+   * - 'client_entered': Contemporary / registration / tree-builder nodes entered by the client
+   */
+  nodeOrigin?: AvatarNodeOrigin;
   customImageUrl?: string;
   preferRealPhoto?: boolean;
   displayName?: string;
@@ -52,6 +70,31 @@ interface HeritageNodeAvatarProps {
   isPrivacyMasked?: boolean;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   className?: string;
+}
+
+const HISTORICAL_FEMALE_NAME_PATTERNS = [
+  /^حواء(\s|$)/u,
+  /^السيدة\s+/u,
+  /^الشريفة\s+/u,
+  /^الأميرة\s+/u,
+  /^أم\s+/u,
+  /\s+بنت\s+/u,
+  /^(فاطمة|خديجة|عائشة|مريم|سارة|هاجر|آمنة|زينب|رقية|صفية|ليلى|خندف|هند|أسماء|حفصة)(\s|$)/u,
+];
+
+function isHistoricalNodeFemale(
+  node?: Partial<UpperAncestorNode>,
+  gender?: 'M' | 'F' | 'male' | 'female',
+  displayName?: string
+): boolean {
+  if (gender === 'F' || gender === 'female') return true;
+  if (node?.gender === 'F' || node?.gender === 'female') return true;
+  if (gender === 'M' || gender === 'male' || node?.gender === 'M' || node?.gender === 'male') {
+    return false;
+  }
+  const cleanName = (node?.name || displayName || '').trim();
+  if (!cleanName) return false;
+  return HISTORICAL_FEMALE_NAME_PATTERNS.some((re) => re.test(cleanName));
 }
 
 const PROPHET_AND_GENESIS_KEYWORDS = [
@@ -308,8 +351,9 @@ export const HeritageNodeAvatar: React.FC<HeritageNodeAvatarProps> = ({
   node,
   eraOverride,
   personRole,
-  gender = 'M',
-  avatarStyle = 'heritage',
+  gender,
+  avatarStyle = 'juthori_signature',
+  nodeOrigin,
   customImageUrl,
   preferRealPhoto = true,
   displayName,
@@ -341,6 +385,56 @@ export const HeritageNodeAvatar: React.FC<HeritageNodeAvatarProps> = ({
           src={customImageUrl}
           alt={displayName || node?.name || 'صورة العضو'}
           className="w-full h-full rounded-full object-cover border border-[#F5D78E]/80"
+        />
+      </div>
+    );
+  }
+
+  // ==========================================================================
+  // JUTHORI SIGNATURE AVATARS (النمط الرسمي التلقائي لصور جذوري الرمزية)
+  // - AV_FAM.png        → حصراً لعقدة العائلة التي أدخلها العميل (direct_family)
+  // - AV_MOD_MALE.png   → للعقد الذكورية التي أدخلها العميل (التسجيل / التشجير)
+  // - AV_MOD_FEMALE.png → للعقد الأنثوية التي أدخلها العميل (التسجيل / التشجير)
+  // - AV_HIS_MALE.png   → للعقد التاريخية الذكورية المستدعاة من بيانات جذوري / شجرة آدم
+  // - AV_HIS_FEMALE.png → للعقد التاريخية الأنثوية المستدعاة من بيانات جذوري / شجرة آدم
+  // ==========================================================================
+  if (avatarStyle === 'juthori_signature') {
+    const resolvedOrigin: AvatarNodeOrigin =
+      nodeOrigin ||
+      (eraOverride === 'family_branch' && !personRole
+        ? 'direct_family'
+        : personRole || eraOverride === 'contemporary'
+        ? 'client_entered'
+        : 'historical');
+
+    let signatureSrc: string;
+    if (resolvedOrigin === 'direct_family') {
+      signatureSrc = JUTHORI_SIGNATURE_AVATARS.directFamily;
+    } else if (resolvedOrigin === 'client_entered') {
+      const isClientFemale =
+        gender === 'F' ||
+        gender === 'female' ||
+        personRole === 'daughter' ||
+        personRole === 'sister';
+      signatureSrc = isClientFemale
+        ? JUTHORI_SIGNATURE_AVATARS.modernFemale
+        : JUTHORI_SIGNATURE_AVATARS.modernMale;
+    } else {
+      const isHistFemale = isHistoricalNodeFemale(node, gender, displayName);
+      signatureSrc = isHistFemale
+        ? JUTHORI_SIGNATURE_AVATARS.historicalFemale
+        : JUTHORI_SIGNATURE_AVATARS.historicalMale;
+    }
+
+    return (
+      <div
+        className={`rounded-full shrink-0 relative overflow-hidden flex items-center justify-center select-none bg-[#F5F1E8] ${sizeClasses} ${className}`}
+      >
+        <img
+          src={signatureSrc}
+          alt={displayName || node?.name || 'صورة رمزية'}
+          className="w-full h-full rounded-full object-cover scale-[1.04] pointer-events-none"
+          draggable={false}
         />
       </div>
     );

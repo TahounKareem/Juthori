@@ -26,6 +26,7 @@ import {
   TreeDisplaySettings,
   TreeSettingsTabId,
 } from '../utils/treeStudioConfig';
+import { JUTHORI_SIGNATURE_AVATARS } from './HeritageNodeAvatar';
 import type { TreeSpineDepthMode } from './InteractiveFamilyTreeBuilder';
 
 export interface DepthSelectorOptionItem {
@@ -893,14 +894,15 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                 </div>
               </div>
 
-              {/* Group 3: 8 Cultural / Calligraphy Avatars */}
+              {/* Group 3: Cultural / Signature / Calligraphy Avatars */}
               <div className="rounded-2xl bg-[#F5F1E8] border border-[#D8C7B2] p-3.5 space-y-3">
                 <div className="text-[11px] font-display font-extrabold text-[#D97757]">
-                  أنماط الصور الرمزية (8 أنماط)
+                  أنماط الصور الرمزية ({TREE_AVATAR_STYLE_OPTIONS.length} أنماط)
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
                   {TREE_AVATAR_STYLE_OPTIONS.map((av) => {
                     const active = settings.avatarStyle === av.id;
+                    const isSignature = av.id === 'juthori_signature';
                     return (
                       <button
                         key={av.id}
@@ -913,13 +915,36 @@ export const TreeStudioSideInspector: React.FC<TreeStudioSideInspectorProps> = (
                           }))
                         }
                         title={av.subtitle}
-                        className={`py-2 px-2.5 rounded-xl border text-[10.5px] font-display font-bold text-right transition-colors cursor-pointer truncate ${
+                        className={`py-2 px-2.5 rounded-xl border text-[10.5px] font-display font-bold text-right transition-colors cursor-pointer ${
+                          isSignature
+                            ? 'col-span-2 flex items-center justify-between gap-2'
+                            : 'truncate'
+                        } ${
                           active
-                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757]'
+                            ? 'bg-[#F5F1E8] border-[#D97757] text-[#D97757] shadow-2xs'
                             : 'bg-[#F5F1E8]/60 border-[#D8C7B2] text-[#1F1F1C]/80 hover:bg-[#F5F1E8]'
                         }`}
                       >
-                        {av.label}
+                        <span className="truncate">{av.label}</span>
+                        {isSignature && (
+                          <span className="inline-flex items-center shrink-0">
+                            <img
+                              src={JUTHORI_SIGNATURE_AVATARS.historicalMale}
+                              alt=""
+                              className="w-5 h-5 rounded-full object-cover border border-[#F5F1E8]"
+                            />
+                            <img
+                              src={JUTHORI_SIGNATURE_AVATARS.directFamily}
+                              alt=""
+                              className="w-5 h-5 rounded-full object-cover border border-[#F5F1E8] -mr-1.5"
+                            />
+                            <img
+                              src={JUTHORI_SIGNATURE_AVATARS.modernMale}
+                              alt=""
+                              className="w-5 h-5 rounded-full object-cover border border-[#F5F1E8] -mr-1.5"
+                            />
+                          </span>
+                        )}
                       </button>
                     );
                   })}

@@ -1027,6 +1027,7 @@ export const MySiteStudioView: React.FC<MySiteStudioViewProps> = ({
             cardTheme: detail.appearance.cardTheme,
             fontFamily: detail.appearance.fontFamily,
             canvasBackground: detail.appearance.canvasBackground,
+            avatarStyle: detail.appearance.avatarStyle || prev.avatarStyle,
           })
         );
       }

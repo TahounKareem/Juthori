@@ -44,6 +44,7 @@ import {
 } from './UnifiedWorkspaceHeader';
 import {
   TREE_ARABIC_FONT_OPTIONS,
+  TREE_AVATAR_STYLE_OPTIONS,
   TREE_CARD_THEMES,
   TreeArabicFontId,
   TreeCanvasBackground,
@@ -54,6 +55,11 @@ import {
   getTreeArabicFontDefinition,
   getTreeCanvasBackgroundStyle,
 } from '../utils/treeStudioConfig';
+import {
+  HeritageNodeAvatar,
+  JUTHORI_SIGNATURE_AVATARS,
+  TreeAvatarStyle,
+} from './HeritageNodeAvatar';
 import {
   AccountLegalType,
   AdamPrimeRegistrySourceItem,
@@ -5636,6 +5642,8 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
     useState<TreeConnectorStyle>('orthogonal');
   const [adamCanvasBackground, setAdamCanvasBackground] =
     useState<TreeCanvasBackground>('dots');
+  const [adamAvatarStyle, setAdamAvatarStyle] =
+    useState<TreeAvatarStyle>('juthori_signature');
 
   const activeAdamTreeTheme =
     TREE_CARD_THEMES[adamTreeThemeId] || TREE_CARD_THEMES.heritage;
@@ -13404,6 +13412,57 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                 })}
                               </div>
                             </div>
+
+                            {/* Avatar Styles (Unified with "شجرتي" & "عمود نسبي" — Default: juthori_signature) */}
+                            <div className="rounded-2xl bg-[#FAF7F2] border border-[#D8C7B2] p-3.5 space-y-2.5">
+                              <div className="text-[11px] font-display font-extrabold text-[#D97757]">
+                                أنماط الصور الرمزية ({TREE_AVATAR_STYLE_OPTIONS.length} أنماط)
+                              </div>
+                              <div className="grid grid-cols-2 gap-1.5">
+                                {TREE_AVATAR_STYLE_OPTIONS.map((av) => {
+                                  const active = adamAvatarStyle === av.id;
+                                  const isSignature =
+                                    av.id === 'juthori_signature';
+                                  return (
+                                    <button
+                                      key={av.id}
+                                      type="button"
+                                      onClick={() => setAdamAvatarStyle(av.id)}
+                                      title={av.subtitle}
+                                      className={`py-2 px-2.5 rounded-xl border text-[10.5px] font-display font-bold text-right transition-colors cursor-pointer ${
+                                        isSignature
+                                          ? 'col-span-2 flex items-center justify-between gap-2'
+                                          : 'truncate'
+                                      } ${
+                                        active
+                                          ? 'bg-[#F5F1E8] border-2 border-[#D97757] text-[#D97757]'
+                                          : 'bg-[#F5F1E8]/65 border-[#D8C7B2] text-[#1F1F1C]/80 hover:border-[#D97757]/55'
+                                      }`}
+                                    >
+                                      <span className="truncate">{av.label}</span>
+                                      {isSignature && (
+                                        <span className="inline-flex items-center shrink-0">
+                                          <img
+                                            src={
+                                              JUTHORI_SIGNATURE_AVATARS.historicalMale
+                                            }
+                                            alt=""
+                                            className="w-5 h-5 rounded-full object-cover border border-[#F5F1E8]"
+                                          />
+                                          <img
+                                            src={
+                                              JUTHORI_SIGNATURE_AVATARS.historicalFemale
+                                            }
+                                            alt=""
+                                            className="w-5 h-5 rounded-full object-cover border border-[#F5F1E8] -mr-1.5"
+                                          />
+                                        </span>
+                                      )}
+                                    </button>
+                                  );
+                                })}
+                              </div>
+                            </div>
                           </>
                         )}
                       </div>
@@ -13567,42 +13626,69 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                         : ''
                                     }`}
                                   >
-                                    <button
-                                      id={`adam-tree-node-btn-${node.node_id}`}
-                                      type="button"
-                                      onClick={() =>
-                                        handleSelectTreeNodeInNavigator(node)
-                                      }
-                                      title={visualMeta.tierTitle}
-                                      className="flex flex-col items-center gap-1 cursor-pointer text-center"
-                                    >
-                                      <div className="flex items-center gap-1.5">
-                                        <span
-                                          className="w-2 h-2 rounded-full shrink-0"
-                                          style={{
-                                            backgroundColor: visualMeta.isCoded
-                                              ? activeAdamTreeTheme.secondaryHex
-                                              : activeAdamTreeTheme.cardStrokeHex,
-                                          }}
-                                        />
-                                        <span
-                                          className={`${
+                                      <button
+                                        id={`adam-tree-node-btn-${node.node_id}`}
+                                        type="button"
+                                        onClick={() =>
+                                          handleSelectTreeNodeInNavigator(node)
+                                        }
+                                        title={visualMeta.tierTitle}
+                                        className="flex flex-col items-center gap-1.5 cursor-pointer text-center"
+                                      >
+                                        <div
+                                          className={`rounded-full overflow-hidden shrink-0 ${
                                             adamCardDensity === 'compact'
-                                              ? 'text-xs'
-                                              : 'text-[13px]'
-                                          } whitespace-nowrap ${
-                                            isSelected || visualMeta.isCoded
-                                              ? 'font-extrabold'
-                                              : 'font-semibold opacity-85'
+                                              ? 'w-8 h-8'
+                                              : 'w-10 h-10'
                                           }`}
                                           style={{
-                                            color:
-                                              activeAdamTreeTheme.textPrimaryHex,
+                                            boxShadow: `0 0 0 1.5px ${
+                                              isSelected
+                                                ? '#D97757'
+                                                : visualMeta.isCoded
+                                                ? activeAdamTreeTheme.primaryHex
+                                                : activeAdamTreeTheme.cardStrokeHex
+                                            }`,
                                           }}
                                         >
-                                          {node.name}
-                                        </span>
-                                      </div>
+                                          <HeritageNodeAvatar
+                                            node={{
+                                              name: node.name,
+                                              code: node.arc_code,
+                                              representation: node.representation,
+                                              gender: node.gender,
+                                            }}
+                                            nodeOrigin="historical"
+                                            avatarStyle={adamAvatarStyle}
+                                            displayName={node.name}
+                                            size={
+                                              adamCardDensity === 'compact'
+                                                ? 'xs'
+                                                : 'sm'
+                                            }
+                                            className="!w-full !h-full !border-0"
+                                          />
+                                        </div>
+
+                                        <div className="flex items-center gap-1.5">
+                                          <span
+                                            className={`${
+                                              adamCardDensity === 'compact'
+                                                ? 'text-xs'
+                                                : 'text-[13px]'
+                                            } whitespace-nowrap ${
+                                              isSelected || visualMeta.isCoded
+                                                ? 'font-extrabold'
+                                                : 'font-semibold opacity-85'
+                                            }`}
+                                            style={{
+                                              color:
+                                                activeAdamTreeTheme.textPrimaryHex,
+                                            }}
+                                          >
+                                            {node.name}
+                                          </span>
+                                        </div>
 
                                       {(visualMeta.isCoded ||
                                         adamCardDensity === 'detailed') && (
@@ -13821,14 +13907,32 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                                           : 'hover:shadow-xs'
                                       }`}
                                     >
-                                      <span
-                                        className="w-2 h-2 rounded-full shrink-0"
+                                      <div
+                                        className="w-7 h-7 rounded-full overflow-hidden shrink-0"
                                         style={{
-                                          backgroundColor: visualMeta.isCoded
-                                            ? activeAdamTreeTheme.secondaryHex
-                                            : activeAdamTreeTheme.cardStrokeHex,
+                                          boxShadow: `0 0 0 1.5px ${
+                                            isSelected
+                                              ? '#D97757'
+                                              : visualMeta.isCoded
+                                              ? activeAdamTreeTheme.primaryHex
+                                              : activeAdamTreeTheme.cardStrokeHex
+                                          }`,
                                         }}
-                                      />
+                                      >
+                                        <HeritageNodeAvatar
+                                          node={{
+                                            name: node.name,
+                                            code: node.arc_code,
+                                            representation: node.representation,
+                                            gender: node.gender,
+                                          }}
+                                          nodeOrigin="historical"
+                                          avatarStyle={adamAvatarStyle}
+                                          displayName={node.name}
+                                          size="xs"
+                                          className="!w-full !h-full !border-0"
+                                        />
+                                      </div>
                                       <span
                                         className={`text-xs ${
                                           isSelected || visualMeta.isCoded
@@ -13951,20 +14055,37 @@ export const ResearcherStudio: React.FC<ResearcherStudioProps> = ({
                     className="shrink-0 bg-gradient-to-l from-[#F5F1E8] via-[#F5F1E8] to-[#E8DED2]/70 border-b border-[#D8C7B2] px-5 pt-4 pb-3 space-y-3"
                   >
                     <div className="flex items-start justify-between gap-2.5">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-extrabold text-[#D97757] tracking-wide">
-                            بطاقة بيانات وتكويد العقدة
-                          </span>
-                          <span className="px-2 py-0.5 rounded-full bg-[#E8DED2] text-[#1F1F1C] text-[10px] font-bold">
-                            {isNodeEditorUnlocked
-                              ? 'وضع التحرير مفتوح'
-                              : 'وضع القراءة المحمي'}
-                          </span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-11 h-11 rounded-full overflow-hidden shrink-0 ring-1 ring-[#D8C7B2] shadow-2xs">
+                          <HeritageNodeAvatar
+                            node={{
+                              name: selectedAdamNode.name,
+                              code: selectedAdamNode.arc_code,
+                              representation: selectedAdamNode.representation,
+                              gender: selectedAdamNode.gender,
+                            }}
+                            nodeOrigin="historical"
+                            avatarStyle={adamAvatarStyle}
+                            displayName={selectedAdamNode.name}
+                            size="md"
+                            className="!w-full !h-full !border-0"
+                          />
                         </div>
-                        <h3 className="text-lg font-extrabold font-serif text-[#1F1F1C] mt-0.5 truncate">
-                          {selectedAdamNode.name}
-                        </h3>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[10px] font-extrabold text-[#D97757] tracking-wide">
+                              بطاقة بيانات وتكويد العقدة
+                            </span>
+                            <span className="px-2 py-0.5 rounded-full bg-[#E8DED2] text-[#1F1F1C] text-[10px] font-bold">
+                              {isNodeEditorUnlocked
+                                ? 'وضع التحرير مفتوح'
+                                : 'وضع القراءة المحمي'}
+                            </span>
+                          </div>
+                          <h3 className="text-lg font-extrabold font-serif text-[#1F1F1C] mt-0.5 truncate">
+                            {selectedAdamNode.name}
+                          </h3>
+                        </div>
                       </div>
 
                       <div className="flex items-center gap-1.5 shrink-0">

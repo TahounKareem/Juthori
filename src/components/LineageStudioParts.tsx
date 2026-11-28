@@ -47,6 +47,8 @@ import {
   getLineageFont,
   parseHistoricalSourceCitation,
 } from '../utils/lineageStudioConfig';
+import { TREE_AVATAR_STYLE_OPTIONS } from '../utils/treeStudioConfig';
+import { JUTHORI_SIGNATURE_AVATARS } from './HeritageNodeAvatar';
 
 // ============================================================================
 // 1. CLASSICAL ARABIC NASAB NARRATION BAR
@@ -216,6 +218,7 @@ export const LineageCustomizationPanel: React.FC<
     prefs.themeId === DEFAULT_LINEAGE_STUDIO_PREFS.themeId &&
     prefs.fontId === DEFAULT_LINEAGE_STUDIO_PREFS.fontId &&
     prefs.backdropId === DEFAULT_LINEAGE_STUDIO_PREFS.backdropId &&
+    prefs.avatarStyle === DEFAULT_LINEAGE_STUDIO_PREFS.avatarStyle &&
     prefs.showNasabStrip === DEFAULT_LINEAGE_STUDIO_PREFS.showNasabStrip;
 
   return (
@@ -502,6 +505,67 @@ export const LineageCustomizationPanel: React.FC<
             );
           })}
         </div>
+      </div>
+
+      {/* Row 3: Identity — Avatar Styles (Synced 1:1 with شجرتي) */}
+      <div
+        className="pt-3 flex flex-wrap items-center gap-1.5"
+        style={{ borderTop: `1px solid ${theme.surfaceBorder}` }}
+        role="group"
+        aria-label="الهوية — أنماط الصور الرمزية"
+      >
+        <span
+          className="text-[11px] font-display font-bold inline-flex items-center gap-1 ml-1 shrink-0"
+          style={{ color: theme.textMutedHex }}
+        >
+          <Sparkles className="w-3.5 h-3.5" style={{ color: theme.goldHex }} />
+          <span>أنماط الصور الرمزية</span>
+        </span>
+
+        {TREE_AVATAR_STYLE_OPTIONS.map((av) => {
+          const active = prefs.avatarStyle === av.id;
+          const isSignature = av.id === 'juthori_signature';
+          return (
+            <button
+              key={av.id}
+              type="button"
+              title={av.subtitle}
+              data-testid={`lineage-avatar-style-${av.id}`}
+              onClick={() => onUpdatePrefs({ avatarStyle: av.id })}
+              className="h-8 px-2.5 rounded-xl text-[11px] font-display font-bold inline-flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
+              style={{
+                backgroundColor: active
+                  ? theme.goldSoftBg
+                  : theme.surfaceAltBg,
+                color: active ? theme.accentTextHex : theme.textPrimaryHex,
+                border: `1px solid ${
+                  active ? theme.goldBorderHex : theme.surfaceBorder
+                }`,
+              }}
+            >
+              {isSignature && (
+                <span className="inline-flex items-center shrink-0">
+                  <img
+                    src={JUTHORI_SIGNATURE_AVATARS.historicalMale}
+                    alt=""
+                    className="w-4 h-4 rounded-full object-cover border border-[#F5F1E8]"
+                  />
+                  <img
+                    src={JUTHORI_SIGNATURE_AVATARS.directFamily}
+                    alt=""
+                    className="w-4 h-4 rounded-full object-cover border border-[#F5F1E8] -mr-1.5"
+                  />
+                  <img
+                    src={JUTHORI_SIGNATURE_AVATARS.modernMale}
+                    alt=""
+                    className="w-4 h-4 rounded-full object-cover border border-[#F5F1E8] -mr-1.5"
+                  />
+                </span>
+              )}
+              <span>{av.label}</span>
+            </button>
+          );
+        })}
       </div>
     </section>
   );

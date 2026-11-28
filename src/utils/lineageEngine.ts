@@ -9577,6 +9577,7 @@ export interface AdamTreeInteractiveNode {
   enriched_sources: string[];
   enriched_branches: string[];
   era_note?: string;
+  gender?: 'M' | 'F' | 'male' | 'female';
 }
 
 export const VALID_STRUCTURAL_ARC_CODES = new Set<string>([

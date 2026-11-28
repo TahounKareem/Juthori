@@ -358,6 +358,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       themeId: sharedVisual.cardTheme,
       fontId: sharedVisual.fontFamily,
       backdropId: sharedVisual.canvasBackground,
+      avatarStyle: sharedVisual.avatarStyle || localLineage.avatarStyle,
     });
   });
   const [isCustomizerOpen, setIsCustomizerOpen] = useState<boolean>(false);
@@ -407,6 +408,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             themeId: sharedLocal.cardTheme,
             fontId: sharedLocal.fontFamily,
             backdropId: sharedLocal.canvasBackground,
+            avatarStyle: sharedLocal.avatarStyle || localLoaded.avatarStyle,
           }
         : localLoaded
     );
@@ -435,6 +437,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           themeId: normalizedTree.cardTheme,
           fontId: normalizedTree.fontFamily,
           backdropId: normalizedTree.canvasBackground,
+          avatarStyle: normalizedTree.avatarStyle,
         });
         setStudioPrefs(synced);
         saveLineageStudioPrefsToLocal(userId, synced);
@@ -453,7 +456,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
     };
   }, [userId, userEmail, result.familyName, isResearcherDirectPreview]);
 
-  // Listen to real-time visual theme/font/backdrop updates from «شجرتي»
+  // Listen to real-time visual theme/font/backdrop/avatar updates from «شجرتي»
   useEffect(() => {
     if (typeof window === 'undefined') return;
     const handleVisualSync = (evt: Event) => {
@@ -466,6 +469,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           themeId: detail.appearance.cardTheme,
           fontId: detail.appearance.fontFamily,
           backdropId: detail.appearance.canvasBackground,
+          avatarStyle: detail.appearance.avatarStyle || prev.avatarStyle,
         });
         saveLineageStudioPrefsToLocal(userId, next);
         return next;
@@ -499,7 +503,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
       const visualChanged =
         patch.themeId !== undefined ||
         patch.fontId !== undefined ||
-        patch.backdropId !== undefined;
+        patch.backdropId !== undefined ||
+        patch.avatarStyle !== undefined;
 
       if (visualChanged) {
         const currentTreeSettings = readSharedTreeDisplaySettingsFromLocal(
@@ -511,6 +516,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           cardTheme: next.themeId,
           fontFamily: next.fontId,
           canvasBackground: next.backdropId,
+          avatarStyle: next.avatarStyle,
         });
         writeSharedTreeDisplaySettingsToLocal(
           userId,
@@ -525,6 +531,7 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             cardTheme: syncedTreeSettings.cardTheme,
             fontFamily: syncedTreeSettings.fontFamily,
             canvasBackground: syncedTreeSettings.canvasBackground,
+            avatarStyle: syncedTreeSettings.avatarStyle,
           },
           displaySettings: syncedTreeSettings,
         });
@@ -2183,7 +2190,12 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           }}
         >
           <div className="flex items-center gap-3 min-w-0">
-            <HeritageNodeAvatar eraOverride={item.era} size="sm" />
+            <HeritageNodeAvatar
+              eraOverride={item.era}
+              avatarStyle={studioPrefs.avatarStyle}
+              nodeOrigin="historical"
+              size="sm"
+            />
             <div className="min-w-0 space-y-0.5">
               <div
                 className="text-xs sm:text-sm font-display font-extrabold truncate"
@@ -2232,6 +2244,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             <HeritageNodeAvatar
               node={station1Node}
               eraOverride="family_branch"
+              avatarStyle={studioPrefs.avatarStyle}
+              nodeOrigin="direct_family"
               size="md"
               className="!w-full !h-full !border-0"
             />
@@ -2255,6 +2269,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           avatar={
             <HeritageNodeAvatar
               personRole="client"
+              avatarStyle={studioPrefs.avatarStyle}
+              nodeOrigin="client_entered"
               size="md"
               customImageUrl={userAvatarUrl}
               className="!w-full !h-full !border-0"
@@ -2279,6 +2295,9 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
           avatar={
             <HeritageNodeAvatar
               personRole={isFather ? 'father' : 'grandfather'}
+              gender="M"
+              avatarStyle={studioPrefs.avatarStyle}
+              nodeOrigin="client_entered"
               size="md"
               className="!w-full !h-full !border-0"
             />
@@ -2314,6 +2333,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             <HeritageNodeAvatar
               node={node}
               eraOverride="prophets_genesis"
+              avatarStyle={studioPrefs.avatarStyle}
+              nodeOrigin="historical"
               size="md"
               className="!w-full !h-full !border-0"
             />
@@ -2342,6 +2363,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
             <HeritageNodeAvatar
               node={node}
               eraOverride="major_tribe"
+              avatarStyle={studioPrefs.avatarStyle}
+              nodeOrigin="historical"
               size="md"
               className="!w-full !h-full !border-0"
             />
@@ -2365,6 +2388,8 @@ export const LineageSpineColumn: React.FC<LineageSpineColumnProps> = ({
         avatar={
           <HeritageNodeAvatar
             node={node}
+            avatarStyle={studioPrefs.avatarStyle}
+            nodeOrigin="historical"
             size="md"
             className="!w-full !h-full !border-0"
           />

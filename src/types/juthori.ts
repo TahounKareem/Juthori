@@ -90,6 +90,7 @@ export interface UpperAncestorNode {
   representation?: NodeRepresentation;
   relation_type?: Neo4jRelationType;
   relation_nature?: Neo4jRelationNature;
+  gender?: 'M' | 'F' | 'male' | 'female';
 }
 
 export interface AncestorCapsule {
